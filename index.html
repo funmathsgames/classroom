@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Classroom</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            background-color: #121212; /* Dark background */
+            color: #ffffff; /* White text */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            display: flex;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: hidden;
+            display: none; /* Initially hidden until password is verified */
+        }
+        .rules {
+            flex: 0 0 300px; /* Fixed width for rules */
+            padding: 30px; /* Increased padding */
+            background-color: #ff5722; /* Orange background for rules */
+            border-radius: 10px;
+            height: 100%; /* Full height */
+            overflow-y: auto; /* Scroll if needed */
+            font-size: 1.2em; /* Larger font size for better readability */
+        }
+        .game-section {
+            flex: 1; /* Allow game section to take up remaining space */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center game content vertically */
+            align-items: center; /* Center game content horizontally */
+            padding: 20px; /* Add padding around the game area */
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 80px); /* Increased box size */
+            gap: 15px; /* Increased gap */
+            margin-top: 20px; /* Space between title and grid */
+        }
+        .box {
+            width: 80px; /* Increased box width */
+            height: 80px; /* Increased box height */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px; /* Increased font size for symbols */
+            cursor: pointer;
+            border: 3px solid #ff5722; /* Orange border */
+            background-color: #333333; /* Dark gray boxes */
+            transition: background-color 0.3s;
+        }
+        .box:hover {
+            background-color: #ff5722; /* Change to orange on hover */
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center content vertically */
+            padding: 20px; /* Add padding */
+            background-color: #1e1e1e; /* Darker background for sidebar */
+            border-left: 3px solid #ff5722; /* Orange border */
+        }
+        .button {
+            margin-top: 30px; /* Increased margin for better spacing */
+            padding: 15px 30px; /* Increased padding for buttons */
+            font-size: 1.2em; /* Larger font size for buttons */
+            background-color: #ff5722; /* Orange button */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #e64a19; /* Darker orange on hover */
+        }
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.8); /* Dark semi-transparent background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensures modal is on top */
+        }
+        .modal-content {
+            background-color: #1e1e1e; /* Darker background for modal */
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .password-input {
+            padding: 15px;
+            font-size: 1.5em;
+            border: 2px solid #ff5722; /* Orange border */
+            border-radius: 5px;
+            margin-top: 20px;
+            width: 300px; /* Fixed width for input */
+        }
+    </style>
+</head>
+<body>
+
+<!-- Modal for Password Input -->
+<div class="modal" id="modal">
+    <div class="modal-content">
+        <h1>Enter Password to Enter</h1>
+        <input type="password" class="password-input" id="password" placeholder="Enter password...">
+        <button class="button" onclick="checkPassword()">Submit</button>
+    </div>
+</div>
+
+<!-- Game Container -->
+<div class="container" id="gameContainer">
+    <!-- Rules Section -->
+    <div class="rules">
+        <h2>Game Rules</h2>
+        <p>1. Start with a balance of $10.</p>
+        <p>2. Place a bet using the input field.</p>
+        <p>3. Click "Start New Game" to play.</p>
+        <p>4. Click on gray boxes to reveal hidden symbols.</p>
+        <p><strong>Winnings:</strong></p>
+        <ul>
+            <li>1 ✅ = Keep your bet</li>
+            <li>2 ✅ = Double your bet</li>
+            <li>3 ✅ = Triple your bet</li>
+        </ul>
+        <p>If you find a ❌, you lose your bet!</p>
+    </div>
+
+    <!-- Game Section -->
+    <div class="game-section">
+        <h1 style="font-size: 2.5em;">Not a game</h1>
+        <p style="font-size: 1.5em;">Balance: $<span id="balance">10</span></p>
+        <div class="grid" id="grid"></div>
+    </div>
+
+    <!-- Sidebar Section -->
+    <div class="sidebar">
+        <label style="font-size: 1.2em;">Place Your Bet: $<input type="number" id="bet" min="1" max="10" value="1" style="width: 70px; font-size: 1em;"></label>
+        <button class="button" onclick="startGame()">Start New Game</button>
+    </div>
+</div>
+
+<script>
+    const gridElement = document.getElementById("grid");
+    const balanceElement = document.getElementById("balance");
+    const betInput = document.getElementById("bet");
+    const gameContainer = document.getElementById("gameContainer");
+    const modal = document.getElementById("modal");
+    const correctPassword = "158jarvi";
+    let balance = 10;
+    let boxes = [];
+    let ticksFound = 0;
+    let gameOver = false;
+
+    function checkPassword() {
+        const enteredPassword = document.getElementById("password").value;
+        if (enteredPassword === correctPassword) {
+            modal.style.display = "none"; // Hide modal
+            gameContainer.style.display = "flex"; // Show game container
+        } else {
+            alert("Incorrect password. Please try again.");
+        }
+    }
+
+    function startGame() {
+        const bet = parseInt(betInput.value);
+        if (bet > balance || bet <= 0) {
+            alert("Invalid bet amount!");
+            return;
+        }
+        
+        balance -= bet;
+        balanceElement.textContent = balance;
+        ticksFound = 0;
+        gameOver = false;
+        gridElement.innerHTML = "";
+        
+        boxes = Array(25).fill("⬜");
+        let tickIndices = new Set();
+        let crossIndices = new Set();
+
+        // Randomly assign 5 "✅" and 5 "❌" to boxes
+        while (tickIndices.size < 5) tickIndices.add(Math.floor(Math.random() * 25));
+        while (crossIndices.size < 5) {
+            let index = Math.floor(Math.random() * 25);
+            if (!tickIndices.has(index)) crossIndices.add(index);
+        }
+
+        tickIndices.forEach(index => boxes[index] = "✅");
+        crossIndices.forEach(index => boxes[index] = "❌");
+
+        for (let i = 0; i < 25; i++) {
+            const box = document.createElement("div");
+            box.classList.add("box");
+            box.onclick = () => revealBox(i, bet);
+            gridElement.appendChild(box);
+        }
+    }
+
+    function revealBox(index, bet) {
+        if (gameOver || gridElement.children[index].textContent !== "") return;
+
+        const box = gridElement.children[index];
+        box.textContent = boxes[index];
+        
+        if (boxes[index] === "✅") {
+            ticksFound++;
+            if (ticksFound === 1) balance += bet;
+            else if (ticksFound === 2) balance += bet * 2;
+            else if (ticksFound === 3) balance += bet * 3;
+            
+            balanceElement.textContent = balance;
+        } else if (boxes[index] === "❌") {
+            alert("You hit an 'X'! You lose your bet.");
+            gameOver = true;
+            return;
+        }
+        
+        if (ticksFound === 3 || balance <= 0) {
+            alert("Game over! Refresh to play again.");
+            gameOver = true;
+        }
+    }
+
+    window.onload = function() {
+        gameContainer.style.display = "none"; // Hide game container initially
+        modal.style.display = "flex"; // Show password modal
+    }
+</script>
+
+</body>
+</html>
